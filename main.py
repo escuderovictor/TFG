@@ -37,9 +37,4 @@ if __name__ == "__main__":
     auth.set_access_token(access_token, access_token_secret)
 
     stream = MyMaxStream(auth, myListener)
-    stream.start(['football'])
-
-
-
-
-
+    stream.start(['basket'])
