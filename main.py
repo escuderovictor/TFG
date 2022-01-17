@@ -17,13 +17,14 @@ class MyStreamListener(tweepy.StreamListener):
 
     def on_error(self, status_code):
         if status_code == 420:
-            #returning False in on_data disconnects the stream
+            # returning False in on_data disconnects the stream
             return False
 
     def on_data(self, data):
         try:
-            with open('Tweet.json', 'a') as f:
+            with open('tweets.json', 'a') as f:
                 f.write(data+ ',')
+                print ('Tweet añadido ✔')
         except BaseException as e:
             pass
         return True
