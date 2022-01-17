@@ -13,12 +13,20 @@ callback_uri = 'oob'
 class MyStreamListener(tweepy.StreamListener):
 
     def on_status(self, status):
-        print(status.user.screen_name + " tweeted:" + status.text)
+        return True
 
     def on_error(self, status_code):
         if status_code == 420:
             #returning False in on_data disconnects the stream
             return False
+
+    def on_data(self, data):
+        try:
+            with open('Tweet.json', 'a') as f:
+                f.write(data+ ',')
+        except BaseException as e:
+            pass
+        return True
 
 
 class MyMaxStream:
@@ -27,7 +35,7 @@ class MyMaxStream:
             self.stream = tweepy.Stream(auth=auth, listener=listener)
 
         def start(self):
-            self.stream.filter(track= ['Elden ring', 'eldenring', 'from software'], languages=['es', 'en'])
+            self.stream.filter(track= ['Elden ring', 'eldenring', 'from software', 'basket'], languages=['es', 'en'])
 
 
 if __name__ == "__main__":
@@ -35,6 +43,7 @@ if __name__ == "__main__":
 
     auth = tweepy.OAuthHandler(consumer_key, consumer_secret, callback_uri)
     auth.set_access_token(access_token, access_token_secret)
+    print('Recopilando tweets...')
 
     stream = MyMaxStream(auth, myListener)
     stream.start()
