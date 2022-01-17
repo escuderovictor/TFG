@@ -26,8 +26,8 @@ class MyMaxStream:
         def __init__(self, auth, listener):
             self.stream = tweepy.Stream(auth=auth, listener=listener)
 
-        def start(self, keyword_list):
-            self.stream.filter(track=keyword_list)
+        def start(self):
+            self.stream.filter(track= ['Elden ring', 'eldenring', 'from software'], languages=['es', 'en'])
 
 
 if __name__ == "__main__":
@@ -37,4 +37,4 @@ if __name__ == "__main__":
     auth.set_access_token(access_token, access_token_secret)
 
     stream = MyMaxStream(auth, myListener)
-    stream.start(['basket'])
+    stream.start()
