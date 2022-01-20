@@ -26,25 +26,52 @@ class MyStreamListener(tweepy.StreamListener):
                 f.write(data+ ',')
                 print ('Tweet añadido ✔')
         except BaseException as e:
-            pass
+            print("Error on_data: %s" % str(e))
         return True
 
 
 class MyMaxStream:
 
-        def __init__(self, auth, listener):
-            self.stream = tweepy.Stream(auth=auth, listener=listener)
+    def __init__(self, auth, listener):
+        self.stream = tweepy.Stream(auth=auth, listener=listener)
 
-        def start(self):
-            self.stream.filter(track= ['Elden ring', 'eldenring', 'from software', 'basket'], languages=['es', 'en'])
+    def start(self):
+        self.stream.filter(track=['Elden ring', 'eldenring', 'from software', 'basket'], languages=['es', 'en'])
+
+
+class OffStream:
+
+    def obtain_tweets(self, screen_name):
+        api = tweepy.API(auth, wait_on_rate_limit=True)
+        tweets_list = []
+        tweets = api.user_timeline(screen_name=screen_name, count=100, include_rts=False, tweets_mode='extended')
+        # print(tweets)
+        try:
+            with open('tweetsOffStream.json', 'a') as f:
+                f.write(tweets)
+        except BaseException as e:
+            print("Error on_data: %s" % str(e))
+        return True
 
 
 if __name__ == "__main__":
-    myListener = MyStreamListener()
-
     auth = tweepy.OAuthHandler(consumer_key, consumer_secret, callback_uri)
     auth.set_access_token(access_token, access_token_secret)
-    print('Recopilando tweets...')
 
-    stream = MyMaxStream(auth, myListener)
-    stream.start()
+    print("Opción 1: Stream   Opción 2: Obtener Tweets")
+    option = input()
+
+    if option == "1":
+        myListener = MyStreamListener()
+        print('Recopilando tweets...')
+        stream = MyMaxStream(auth, myListener)
+        stream.start()
+    elif option == "2":
+        searcher = OffStream()
+        searcher.obtain_tweets("ELDENRING")
+    else:
+        print("Opción Inválida")
+
+
+
+
