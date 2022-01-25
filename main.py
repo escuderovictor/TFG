@@ -1,14 +1,8 @@
 import tweepy
+import keys
 import json
-
-consumer_key = "8BvefOC1ydZ9zTXhddQexIf4T"
-consumer_secret = "Zdcz0ToSLTvBcru3KLhrTftUkbqtw4nCU8te3N5T0ENnhC3wtV"
-
-access_token = "253251337-ALmcpBN7ICriJnyGAMy0t24Pyg8TFPhrRTcnINCp"
-access_token_secret = "i1dGHsWynzkLl1GyFfCnXc70J3dxqwBkZccblytN2F5uW"
-
-callback_uri = 'oob'
-
+import pandas as pd
+from keys import *
 
 class MyStreamListener(tweepy.StreamListener):
 
@@ -36,25 +30,42 @@ class MyMaxStream:
         self.stream = tweepy.Stream(auth=auth, listener=listener)
 
     def start(self):
-        self.stream.filter(track=['Elden ring', 'eldenring', 'from software', 'basket'], languages=['es', 'en'])
+        self.stream.filter(track=word_filter, languages=languages_filter)
 
 
 class OffStream:
 
     def obtain_tweets(self, screen_name):
+        # api = tweepy.API(auth, wait_on_rate_limit=True)
+        # tweets_list = []
+        # tweets = api.user_timeline(screen_name=screen_name, count=100, include_rts=False, tweets_mode='extended')
+        # # print(tweets)
+        # try:
+        #     with open('tweetsOffStream.json', 'a') as f:
+        #         f.write(tweets)
+        # except BaseException as e:
+        #     print("Error on_data: %s" % str(e))
+        # return True
+
         api = tweepy.API(auth, wait_on_rate_limit=True)
-        tweets_list = []
-        tweets = api.user_timeline(screen_name=screen_name, count=100, include_rts=False, tweets_mode='extended')
-        # print(tweets)
-        try:
-            with open('tweetsOffStream.json', 'a') as f:
-                f.write(tweets)
-        except BaseException as e:
-            print("Error on_data: %s" % str(e))
-        return True
+        public_tweets = api.user_timeline(screen_name=screen_name, count=100, include_rts=False, tweets_mode='extended')
+
+        # create dataframe
+        columns = ['created_at', 'id', 'text', 'screen_name']
+        data = []
+        for tweet in public_tweets:
+            data.append([tweet.created_at, tweet.id, tweet.text, tweet.user.screen_name])
+
+        df = pd.DataFrame(data, columns=columns)
+
+        df.to_csv('tweetsOffStream.csv')
+        csv_data = pd.read_csv("tweetsOffStream.csv", sep=",")
+        csv_data.to_json("tweetsOffStream.json", orient="records")
 
 
 if __name__ == "__main__":
+
+    callback_uri = 'oob'
     auth = tweepy.OAuthHandler(consumer_key, consumer_secret, callback_uri)
     auth.set_access_token(access_token, access_token_secret)
 
@@ -68,7 +79,7 @@ if __name__ == "__main__":
         stream.start()
     elif option == "2":
         searcher = OffStream()
-        searcher.obtain_tweets("ELDENRING")
+        searcher.obtain_tweets(twitter_profile)
     else:
         print("Opción Inválida")
 
