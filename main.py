@@ -16,13 +16,6 @@ class MyStreamListener(tweepy.StreamListener):
             return False
 
     def on_data(self, data):
-        # try:
-        #     with open('tweets.json', 'a') as f:
-        #         f.write(data+ ',')
-        #         print ('Tweet añadido ✔')
-        # except BaseException as e:
-        #     print("Error on_data: %s" % str(e))
-        # return True
 
         data_aux = json.loads(data)
         tweet_export = {
@@ -37,10 +30,11 @@ class MyStreamListener(tweepy.StreamListener):
             "favourites": data_aux["favorite_count"]
         }
 
-        print(tweet_export)
+        # print(tweet_export)
 
-        # es.index(index="tweets", doc_type="test-type", id=21, document=tweet_export)
-   
+        es = Elasticsearch()
+        es.index(index="tweets", id=tweet_export["id"], document=tweet_export)
+        print('Tweet añadido ✔')
 
 
 class MyMaxStream:
@@ -78,15 +72,8 @@ if __name__ == "__main__":
     auth = tweepy.OAuthHandler(consumer_key, consumer_secret, callback_uri)
     auth.set_access_token(access_token, access_token_secret)
 
-    try:
-        es = Elasticsearch({'host': 'localhost', 'port': 9200})
-        print("Conectado a Elastic")
-    except BaseException as e:
-        print("Error on_data: %s" % str(e))
-
     print("Opción 1: Stream   Opción 2: Obtener Tweets")
     option = input()
-
     if option == "1":
         myListener = MyStreamListener()
         print('Recopilando tweets...')
