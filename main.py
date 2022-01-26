@@ -3,6 +3,7 @@ import keys
 import json
 import pandas as pd
 from keys import *
+from elasticsearch import Elasticsearch
 
 class MyStreamListener(tweepy.StreamListener):
 
@@ -36,16 +37,6 @@ class MyMaxStream:
 class OffStream:
 
     def obtain_tweets(self, screen_name):
-        # api = tweepy.API(auth, wait_on_rate_limit=True)
-        # tweets_list = []
-        # tweets = api.user_timeline(screen_name=screen_name, count=100, include_rts=False, tweets_mode='extended')
-        # # print(tweets)
-        # try:
-        #     with open('tweetsOffStream.json', 'a') as f:
-        #         f.write(tweets)
-        # except BaseException as e:
-        #     print("Error on_data: %s" % str(e))
-        # return True
 
         api = tweepy.API(auth, wait_on_rate_limit=True)
         public_tweets = api.user_timeline(screen_name=screen_name, count=100, include_rts=False, tweets_mode='extended')
@@ -68,6 +59,12 @@ if __name__ == "__main__":
     callback_uri = 'oob'
     auth = tweepy.OAuthHandler(consumer_key, consumer_secret, callback_uri)
     auth.set_access_token(access_token, access_token_secret)
+
+    try:
+        es = Elasticsearch({'host': 'localhost', 'port': 9200})
+        print("Conectado a Elastic")
+    except BaseException as e:
+        print("Error on_data: %s" % str(e))
 
     print("Opción 1: Stream   Opción 2: Obtener Tweets")
     option = input()
