@@ -16,13 +16,31 @@ class MyStreamListener(tweepy.StreamListener):
             return False
 
     def on_data(self, data):
-        try:
-            with open('tweets.json', 'a') as f:
-                f.write(data+ ',')
-                print ('Tweet añadido ✔')
-        except BaseException as e:
-            print("Error on_data: %s" % str(e))
-        return True
+        # try:
+        #     with open('tweets.json', 'a') as f:
+        #         f.write(data+ ',')
+        #         print ('Tweet añadido ✔')
+        # except BaseException as e:
+        #     print("Error on_data: %s" % str(e))
+        # return True
+
+        data_aux = json.loads(data)
+        tweet_export = {
+            "created_at": data_aux["created_at"],
+            "id": data_aux["id"],
+            "text": data_aux["text"],
+            "user": data_aux["user"]["screen_name"],
+            "user_followers": data_aux["user"]["followers_count"],
+            "user_follows": data_aux["user"]["friends_count"],
+            "user_location": data_aux["user"]["location"],
+            "retweets": data_aux["retweet_count"],
+            "favourites": data_aux["favorite_count"]
+        }
+
+        print(tweet_export)
+
+        # es.index(index="tweets", doc_type="test-type", id=21, document=tweet_export)
+   
 
 
 class MyMaxStream:
