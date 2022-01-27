@@ -1,12 +1,13 @@
 import signal
 import sys
-
 import tweepy
-import keys
 import json
 import pandas as pd
 from keys import *
+
+
 from elasticsearch import Elasticsearch
+
 
 class MyStreamListener(tweepy.StreamListener):
 
@@ -20,11 +21,19 @@ class MyStreamListener(tweepy.StreamListener):
 
     def on_data(self, data):
 
+        stemmed = SnowballStemmer("spanish")
+        data_aux = json.loads(data)
+        text = data_aux["text"]
+        text = text.lower()
+        text = text.replace("á", "a").replace("é", "e").replace("í", "i").replace("ó", "o").replace("ú", "u")
+        text = re.sub(r"[^a-zA-Z0-9]", " ", text)
+        stemmed_text = [stemmed.stem(i) for i in word_tokenize(text)]
+
         data_aux = json.loads(data)
         tweet_export = {
             "created_at": data_aux["created_at"],
             "id": data_aux["id"],
-            "text": data_aux["text"],
+            "text": stemmed_text,
             "user": data_aux["user"]["screen_name"],
             "user_followers": data_aux["user"]["followers_count"],
             "user_follows": data_aux["user"]["friends_count"],
@@ -33,11 +42,22 @@ class MyStreamListener(tweepy.StreamListener):
             "favourites": data_aux["favorite_count"]
         }
 
-        # print(tweet_export)
+        print(tweet_export)
 
-        es = Elasticsearch([{'host': 'localhost', 'port': 9200}])
-        es.index(index="tweets", id=tweet_export["id"], document=tweet_export)
-        print('Tweet añadido ✔')
+        # es = Elasticsearch([elastic_host])
+        # es.index(index=index_name, id=tweet_export["id"], document=tweet_export)
+        # print('Tweet indexado ✔')
+
+
+        # tweet_export = {
+        #     "user": data_aux["user"]["screen_name"],
+        #     "text": stemmed_text
+        # }
+        # tweet_original = {
+        #     "user": data_aux["user"]["screen_name"],
+        #     "text": data_aux["text"]
+        # }
+        # print(tweet_export)
 
 
 class MyMaxStream:
@@ -68,13 +88,22 @@ class OffStream:
         csv_data = pd.read_csv("tweetsOffStream.csv", sep=",")
         csv_data.to_json("tweetsOffStream.json", orient="records")
 
+    def lematz(self, text):
+
+        stemmed = SnowballStemmer("spanish")
+        text = text.lower()
+        text = text.replace("á", "a").replace("é", "e").replace("í", "i").replace("ó", "o").replace("ú", "u")
+        text = re.sub(r"[^a-zA-Z0-9]", " ", text)
+        stemmed_text = [stemmed.stem(i) for i in word_tokenize(text)]
+
+        print(stemmed_text)
+
 
 if __name__ == "__main__":
 
     callback_uri = 'oob'
     auth = tweepy.OAuthHandler(consumer_key, consumer_secret, callback_uri)
     auth.set_access_token(access_token, access_token_secret)
-
 
     def sigint_handler(signal, frame):
         print('\nPrograma parado manualente ⌨')
@@ -91,10 +120,6 @@ if __name__ == "__main__":
         stream.start()
     elif option == "2":
         searcher = OffStream()
-        searcher.obtain_tweets(twitter_profile)
+        searcher.lematz('Circulación ínterrumpida én L5 DEBIDO , a una avería electrica, disculpen las molestias')
     else:
         print("Opción Inválida")
-
-
-
-
