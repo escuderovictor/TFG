@@ -5,7 +5,7 @@ access_token_secret = "i1dGHsWynzkLl1GyFfCnXc70J3dxqwBkZccblytN2F5uW"
 
 callback_uri = 'oob'
 
-word_filter = ['Elden ring', 'eldenring', 'from software', 'basket']
-languages_filter = ['es', 'en']
+filter_words = ['Elden ring', 'eldenring', 'from software']
+filter_languages = ['es', 'en']
 
 twitter_profile = "ELDENRING"

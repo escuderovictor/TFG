@@ -1,3 +1,6 @@
+import signal
+import sys
+
 import tweepy
 import keys
 import json
@@ -32,7 +35,7 @@ class MyStreamListener(tweepy.StreamListener):
 
         # print(tweet_export)
 
-        es = Elasticsearch()
+        es = Elasticsearch([{'host': 'localhost', 'port': 9200}])
         es.index(index="tweets", id=tweet_export["id"], document=tweet_export)
         print('Tweet añadido ✔')
 
@@ -43,7 +46,7 @@ class MyMaxStream:
         self.stream = tweepy.Stream(auth=auth, listener=listener)
 
     def start(self):
-        self.stream.filter(track=word_filter, languages=languages_filter)
+        self.stream.filter(track=filter_words, languages=filter_languages)
 
 
 class OffStream:
@@ -71,6 +74,13 @@ if __name__ == "__main__":
     callback_uri = 'oob'
     auth = tweepy.OAuthHandler(consumer_key, consumer_secret, callback_uri)
     auth.set_access_token(access_token, access_token_secret)
+
+
+    def sigint_handler(signal, frame):
+        print('\nPrograma parado manualente ⌨')
+        sys.exit(0)
+
+    signal.signal(signal.SIGINT, sigint_handler)
 
     print("Opción 1: Stream   Opción 2: Obtener Tweets")
     option = input()
