@@ -1,3 +1,4 @@
+import os
 import signal
 import sys
 import tweepy
@@ -44,9 +45,10 @@ class MyStreamListener(tweepy.StreamListener):
 
         print(tweet_export)
 
-        # es = Elasticsearch([elastic_host])
-        # es.index(index=index_name, id=tweet_export["id"], document=tweet_export)
-        # print('Tweet indexado ✔')
+        es = Elasticsearch([elastic_host])
+
+        es.index(index=index_name, id=tweet_export["id"], document=tweet_export)
+        print('Tweet indexado ✔ \n')
 
 
         # tweet_export = {
@@ -106,7 +108,7 @@ if __name__ == "__main__":
     auth.set_access_token(access_token, access_token_secret)
 
     def sigint_handler(signal, frame):
-        print('\nPrograma parado manualente ⌨')
+        print('\033[1m' + '⌨ Programa parado manualente ⌨ ' + '\033[0m')
         sys.exit(0)
 
     signal.signal(signal.SIGINT, sigint_handler)
