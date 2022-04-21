@@ -1,4 +1,3 @@
-import os
 import signal
 import sys
 import tweepy
@@ -113,7 +112,7 @@ if __name__ == "__main__":
 
     signal.signal(signal.SIGINT, sigint_handler)
 
-    print("Opción 1: Stream   Opción 2: Obtener Tweets")
+    print("Opción 1: Stream   Opción 2: Obtener Tweets off stream")
     option = input()
     if option == "1":
         myListener = MyStreamListener()
@@ -121,7 +120,10 @@ if __name__ == "__main__":
         stream = MyMaxStream(auth, myListener)
         stream.start()
     elif option == "2":
-        searcher = OffStream()
-        searcher.lematz('Circulación ínterrumpida én L5 DEBIDO , a una avería electrica, disculpen las molestias')
+        # Esta opcion obtiene los tweets de la cuenta pasada por parametro y los pasa a csv y json
+        # searcher = OffStream()
+        # searcher.obtain_tweets('Powerbazinga')
+        # searcher.lematz('Circulación ínterrumpida én L5 DEBIDO , a una avería electrica, disculpen las molestias')
+        print('\033[1m' + 'Opción desactivada' + '\033[0m')
     else:
         print("Opción Inválida")
