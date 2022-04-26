@@ -11,6 +11,7 @@ callback_uri = 'oob'
 
 filter_words = ['Elden ring', 'eldenring', 'from software', 'ps5']
 filter_languages = ['es']
+user_tweets = 'powerbazinga'
 
 index_name = "tweets"
 # elastic_host = {'host': 'localhost', 'port': 9200}
