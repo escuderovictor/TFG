@@ -13,7 +13,8 @@ filter_words = ['Elden ring', 'eldenring', 'from software', 'ps5']
 filter_languages = ['es']
 user_tweets = 'powerbazinga'
 
-index_name = "tweets"
+index_name = 'tweets'
+index_name_off = 'tweets_off_stream'
 # elastic_host = {'host': 'localhost', 'port': 9200}
 elastic_host = 'http://elastic:JvZpQ9D9JBMrza7KyHbW@localhost:9200'
 

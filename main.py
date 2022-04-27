@@ -66,17 +66,35 @@ class OffStream:
         api = tweepy.API(auth, wait_on_rate_limit=True)
         public_tweets = api.user_timeline(screen_name=screen_name, count=10, include_rts=True, tweets_mode='extended')
 
-        # create dataframe
-        columns = ['created_at', 'id', 'text', 'screen_name']
-        data = []
+
+        # # create dataframe
+        # columns = ['created_at', 'id', 'text', 'screen_name']
+        # data = []
+        # for tweet in public_tweets:
+        #     data.append([tweet.created_at, tweet.id, tweet.text, tweet.user.screen_name])
+        #
+        # df = pd.DataFrame(data, columns=columns)
+        #
+        # df.to_csv('tweetsOffStream.csv')
+        # csv_data = pd.read_csv("tweetsOffStream.csv", sep=",")
+        # csv_data.to_json("tweetsOffStream.json", orient="records")
+
+        es = Elasticsearch([elastic_host])
+        print('Conectado a elastic')
         for tweet in public_tweets:
-            data.append([tweet.created_at, tweet.id, tweet.text, tweet.user.screen_name])
-
-        df = pd.DataFrame(data, columns=columns)
-
-        df.to_csv('tweetsOffStream.csv')
-        csv_data = pd.read_csv("tweetsOffStream.csv", sep=",")
-        csv_data.to_json("tweetsOffStream.json", orient="records")
+            tweet_export = {
+                "created_at": tweet.created_at,
+                "id": tweet.id,
+                "text": tweet.text,
+                "user": tweet.user.screen_name,
+                "user_followers": tweet.user.followers_count,
+                "user_follows": tweet.user.friends_count,
+                "user_location": tweet.user.location,
+                "retweets": tweet.retweet_count,
+                "favourites": tweet.favorite_count
+            }
+            es.index(index=index_name_off, id=tweet_export['id'], document=tweet_export)
+        print('\nTweets de la cuenta @' + screen_name + ' indexados ✔ \n')
 
     def lematz(self, text):
 
@@ -112,9 +130,8 @@ if __name__ == "__main__":
         stream = MyMaxStream(auth, myListener)
         stream.start()
     elif option == "2":
-        # Esta opcion obtiene los tweets de la cuenta pasada por parametro y los pasa a csv y json
+        # Esta opcion obtiene los tweets de la cuenta pasada por parametro y los indexa en elastic
         searcher = OffStream()
         searcher.obtain_tweets(user_tweets)
-        print('Tweets obtenidos')
     else:
         print('\033[1m' + 'Opción inválida' + '\033[0m')
