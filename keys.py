@@ -9,12 +9,13 @@ access_token_secret = "i1dGHsWynzkLl1GyFfCnXc70J3dxqwBkZccblytN2F5uW"
 
 callback_uri = 'oob'
 
-filter_words = ['Elden ring', 'eldenring', 'from software', 'ps5']
-filter_languages = ['es']
+filter_words = ['call of duty', 'warzone', 'modern warfare 2', 'mw2', 'cod', 'activision']
+filter_languages = ['en']
 user_tweets = 'powerbazinga'
 
 index_name = 'tweets'
 index_name_off = 'tweets_off_stream'
+tweets_index = 20
 # elastic_host = {'host': 'localhost', 'port': 9200}
 elastic_host = 'http://elastic:JvZpQ9D9JBMrza7KyHbW@localhost:9200'
 

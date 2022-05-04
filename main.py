@@ -2,10 +2,10 @@ import signal
 import sys
 import tweepy
 import json
-import pandas as pd
+import nltk
+from nltk.sentiment import SentimentIntensityAnalyzer
 from keys import *
-
-
+from filtros import *
 from elasticsearch import Elasticsearch
 
 
@@ -21,19 +21,26 @@ class MyStreamListener(tweepy.StreamListener):
 
     def on_data(self, data):
 
-        stemmed = SnowballStemmer("spanish")
+        # stemmed = SnowballStemmer("spanish")
+        # data_aux = json.loads(data)
+        # text = data_aux["text"]
+        # text = text.lower()
+        # text = text.replace("á", "a").replace("é", "e").replace("í", "i").replace("ó", "o").replace("ú", "u")
+        # text = re.sub(r"[^a-zA-Z0-9]", " ", text)
+        # stemmed_text = [stemmed.stem(i) for i in word_tokenize(text)]
+
         data_aux = json.loads(data)
         text = data_aux["text"]
         text = text.lower()
         text = text.replace("á", "a").replace("é", "e").replace("í", "i").replace("ó", "o").replace("ú", "u")
         text = re.sub(r"[^a-zA-Z0-9]", " ", text)
-        stemmed_text = [stemmed.stem(i) for i in word_tokenize(text)]
+        # text = word_tokenize(text)
 
-        data_aux = json.loads(data)
         tweet_export = {
             "created_at": data_aux["created_at"],
             "id": data_aux["id"],
-            "text": stemmed_text,
+            # "text": stemmed_text,
+            "text": text,
             "user": data_aux["user"]["screen_name"],
             "user_followers": data_aux["user"]["followers_count"],
             "user_follows": data_aux["user"]["friends_count"],
@@ -43,12 +50,30 @@ class MyStreamListener(tweepy.StreamListener):
         }
 
         print(tweet_export)
-
         es = Elasticsearch([elastic_host])
 
+        # Analisis de opinion positiva o negativa en ingles
+        
+        aux = SentimentIntensityAnalyzer()
+        print(aux.polarity_scores(tweet_export["text"])['compound'])
+
+        if aux.polarity_scores(tweet_export["text"])['compound'] <= 0:
+            opinion = {'op': 'positive'}
+        elif aux.polarity_scores(tweet_export["text"])['compound'] >= 0:
+            opinion = {'op': 'negative'}
+        else:
+            opinion = {'op': 'neutral'}
+
+        es.index(index='tweets_compound', id=tweet_export["id"], document=opinion)
         es.index(index=index_name, id=tweet_export["id"], document=tweet_export)
         print('Tweet indexado ✔ \n')
 
+
+class Classifier:
+
+    def nltkSentiment(self, text):
+        aux = SentimentIntensityAnalyzer()
+        print(aux.polarity_scores(text))
 
 class MyMaxStream:
 
@@ -64,8 +89,7 @@ class OffStream:
     def obtain_tweets(self, screen_name):
 
         api = tweepy.API(auth, wait_on_rate_limit=True)
-        public_tweets = api.user_timeline(screen_name=screen_name, count=10, include_rts=True, tweets_mode='extended')
-
+        public_tweets = api.user_timeline(screen_name=screen_name, count=tweets_index, include_rts=True, tweets_mode='extended')
 
         # # create dataframe
         # columns = ['created_at', 'id', 'text', 'screen_name']
@@ -93,8 +117,10 @@ class OffStream:
                 "retweets": tweet.retweet_count,
                 "favourites": tweet.favorite_count
             }
+
             es.index(index=index_name_off, id=tweet_export['id'], document=tweet_export)
-        print('\nTweets de la cuenta @' + screen_name + ' indexados ✔ \n')
+
+        print('Últimos tweets de la cuenta @' + screen_name + ' indexados ✔ \n')
 
     def lematz(self, text):
 
@@ -116,22 +142,25 @@ if __name__ == "__main__":
         print('\033[1m' + '⌨ Programa parado manualente ⌨ ' + '\033[0m')
         sys.exit(0)
 
-    # signal.signal(signal.SIGINT, sigint_handler)
+    signal.signal(signal.SIGINT, sigint_handler)
+
     # myListener = MyStreamListener()
     # print('\033[1m' + 'Recopilando tweets... ' + '\033[0m')
     # stream = MyMaxStream(auth, myListener)
     # stream.start()
 
-    print("Opción 1: Stream   Opción 2: Obtener Tweets off stream")
+    print("Opción 1: Stream   Opción 2: Obtener Tweets off stream   Opción 3: Test" )
     option = input()
-    if option == "1":
+    if option == '1':
         myListener = MyStreamListener()
         print('Recopilando tweets...')
         stream = MyMaxStream(auth, myListener)
         stream.start()
-    elif option == "2":
+    elif option == '2':
         # Esta opcion obtiene los tweets de la cuenta pasada por parametro y los indexa en elastic
         searcher = OffStream()
         searcher.obtain_tweets(user_tweets)
-    else:
+    elif option == '3':
+        classifier = Classifier()
+        classifier.nltkSentiment('elden ring esta bien pero no me convence')
         print('\033[1m' + 'Opción inválida' + '\033[0m')
