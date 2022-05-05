@@ -2,11 +2,11 @@ import signal
 import sys
 import tweepy
 import json
-import nltk
 from nltk.sentiment import SentimentIntensityAnalyzer
 from keys import *
-from filtros import *
 from elasticsearch import Elasticsearch
+from sentiment_analysis_spanish import sentiment_analysis
+from pysentimiento import create_analyzer
 
 
 class MyStreamListener(tweepy.StreamListener):
@@ -22,19 +22,13 @@ class MyStreamListener(tweepy.StreamListener):
     def on_data(self, data):
 
         # stemmed = SnowballStemmer("spanish")
-        # data_aux = json.loads(data)
-        # text = data_aux["text"]
-        # text = text.lower()
-        # text = text.replace("á", "a").replace("é", "e").replace("í", "i").replace("ó", "o").replace("ú", "u")
-        # text = re.sub(r"[^a-zA-Z0-9]", " ", text)
-        # stemmed_text = [stemmed.stem(i) for i in word_tokenize(text)]
-
         data_aux = json.loads(data)
         text = data_aux["text"]
         text = text.lower()
         text = text.replace("á", "a").replace("é", "e").replace("í", "i").replace("ó", "o").replace("ú", "u")
         text = re.sub(r"[^a-zA-Z0-9]", " ", text)
-        # text = word_tokenize(text)
+        # text = word_tokenize(text)    #Separa el tweet en palabras
+        # stemmed_text = [stemmed.stem(i) for i in word_tokenize(text)]
 
         tweet_export = {
             "created_at": data_aux["created_at"],
@@ -52,19 +46,18 @@ class MyStreamListener(tweepy.StreamListener):
         print(tweet_export)
         es = Elasticsearch([elastic_host])
 
-        # Analisis de opinion positiva o negativa en ingles
-        
-        aux = SentimentIntensityAnalyzer()
+        aux = SentimentIntensityAnalyzer()  # Analisis de opinion positiva o negativa en ingles
+
         print(aux.polarity_scores(tweet_export["text"])['compound'])
 
-        if aux.polarity_scores(tweet_export["text"])['compound'] <= 0:
+        if aux.polarity_scores(tweet_export["text"])['compound'] < 0:
             opinion = {'op': 'positive'}
-        elif aux.polarity_scores(tweet_export["text"])['compound'] >= 0:
+        elif aux.polarity_scores(tweet_export["text"])['compound'] > 0:
             opinion = {'op': 'negative'}
         else:
             opinion = {'op': 'neutral'}
 
-        es.index(index='tweets_compound', id=tweet_export["id"], document=opinion)
+        es.index(index=index_name_compound, id=tweet_export["id"], document=opinion)
         es.index(index=index_name, id=tweet_export["id"], document=tweet_export)
         print('Tweet indexado ✔ \n')
 
@@ -89,19 +82,8 @@ class OffStream:
     def obtain_tweets(self, screen_name):
 
         api = tweepy.API(auth, wait_on_rate_limit=True)
-        public_tweets = api.user_timeline(screen_name=screen_name, count=tweets_index, include_rts=True, tweets_mode='extended')
-
-        # # create dataframe
-        # columns = ['created_at', 'id', 'text', 'screen_name']
-        # data = []
-        # for tweet in public_tweets:
-        #     data.append([tweet.created_at, tweet.id, tweet.text, tweet.user.screen_name])
-        #
-        # df = pd.DataFrame(data, columns=columns)
-        #
-        # df.to_csv('tweetsOffStream.csv')
-        # csv_data = pd.read_csv("tweetsOffStream.csv", sep=",")
-        # csv_data.to_json("tweetsOffStream.json", orient="records")
+        for i in screen_name:
+            public_tweets = api.user_timeline(screen_name=i, count=tweets_index, include_rts=True, tweets_mode='extended')
 
         es = Elasticsearch([elastic_host])
         print('Conectado a elastic')
@@ -120,7 +102,7 @@ class OffStream:
 
             es.index(index=index_name_off, id=tweet_export['id'], document=tweet_export)
 
-        print('Últimos tweets de la cuenta @' + screen_name + ' indexados ✔ \n')
+        print('Últimos', tweets_index,  'tweets de las cuentas ', screen_name, ' indexados ✔ ')
 
     def lematz(self, text):
 
@@ -161,6 +143,9 @@ if __name__ == "__main__":
         searcher = OffStream()
         searcher.obtain_tweets(user_tweets)
     elif option == '3':
-        classifier = Classifier()
-        classifier.nltkSentiment('elden ring esta bien pero no me convence')
-        print('\033[1m' + 'Opción inválida' + '\033[0m')
+
+        # sentiment = sentiment_analysis.SentimentAnalysisSpanish()
+        # print(sentiment.sentiment('modern warfare 2 es un juego para niños'))   # Positive ~ 1 / Negative ~ 0
+        #
+        # analyzer = create_analyzer(task="sentiment", lang="es")
+        # analyzer.predict('modern warfare 2 es un juego para niños')
