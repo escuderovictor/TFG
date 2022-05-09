@@ -9,8 +9,9 @@ access_token_secret = "i1dGHsWynzkLl1GyFfCnXc70J3dxqwBkZccblytN2F5uW"
 
 callback_uri = 'oob'
 
-filter_words = ['call of duty', 'warzone', 'modern warfare 2', 'mw2', 'cod', 'activision']
-filter_languages = ['en']
+filter_words = ['ps5', 'gamepass']
+filter_no_words = ['sorteo']
+filter_languages = ['es', 'en']
 user_tweets = ['powerbazinga', 'joseju']
 
 index_name = 'tweets'
