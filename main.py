@@ -4,9 +4,7 @@ import tweepy
 import json
 from keys import *
 from elasticsearch import Elasticsearch
-from sentiment_analysis_spanish import sentiment_analysis
 import pandas as pd
-import nltk as nltk
 from nltk.sentiment.vader import SentimentIntensityAnalyzer
 from datetime import datetime
 from googletrans import Translator
@@ -27,67 +25,60 @@ class MyStreamListener(tweepy.StreamListener):
 
     def on_data(self, data):
 
-        # stemmed = SnowballStemmer('spanish')
         data_aux = json.loads(data)
         text = data_aux['text']
-        # text = text.lower()
-        text = re.sub('http\S+', ' ', text)     # Quitar enlaces
-        regex = '[\\!\\"\\#\\$\\%\\&\\\'\\(\\)\\*\\+\\,\\-\\.\\/\\:\\;\\<\\=\\>\\?\\@\\[\\\\\\]\\^_\\`\\{\\|\\}\\~]'
-        text = re.sub(regex, ' ', text)     # Quitar signos
-        text = re.sub("\\s+", ' ', text)    # Quitar espacios en blanco
-        text = re.sub(r'[^a-zA-Z0-9]', ' ', text)
-        # text = text.replace('á', 'a').replace('é', 'e').replace('í', 'i').replace('ó', 'o').replace('ú', 'u')
-        # text = word_tokenize(text)    #Separa el tweet en palabras
-        # stemmed_text = [stemmed.stem(i) for i in word_tokenize(text)]
-        print(text)
-        text_trans = []
+        text = re.sub(r'https?:\/\/.\S+', "", text)
+        text = re.sub(r'#', '', text)
+        text = re.sub(r'^RT[\s]+', '', text)
 
         translator = Translator()
         twtraduction = translator.translate(text, dest='en')
+
+        print(text)
+
         print(twtraduction.text)
 
         # date = data_aux['created_at']
         # date = datetime.strptime(date, '%a %b %d %H %z %Y')
         # # date = datetime.strftime(date, '%a %b %d')
 
-        # tweet_export = {
-        #     'created_at': data_aux['created_at'],
-        #     'id': data_aux['id'],
-        #     # 'text': stemmed_text,
-        #     'text': text,
-        #     'user': data_aux['user']['screen_name'],
-        #     'user_followers': data_aux['user']['followers_count'],
-        #     'user_follows': data_aux['user']['friends_count'],
-        #     'user_location': data_aux['user']['location'],
-        #     'coordinates': data_aux['coordinates'],
-        #     'retweets': data_aux['retweet_count'],
-        #     'favourites': data_aux['favorite_count']
-        # }
-        #
+        tweet_export = {
+            'created_at': data_aux['created_at'],
+            'id': data_aux['id'],
+            # 'text': stemmed_text,
+            'text': text,
+            'user': data_aux['user']['screen_name'],
+            'user_followers': data_aux['user']['followers_count'],
+            'user_follows': data_aux['user']['friends_count'],
+            'user_location': data_aux['user']['location'],
+            'coordinates': data_aux['coordinates'],
+            'retweets': data_aux['retweet_count'],
+            'favourites': data_aux['favorite_count'],
+            'opinion': 0,
+            'opnionavg': 0
+        }
+
         # print(tweet_export)
-        # es = Elasticsearch([elastic_host])
+
+        es = Elasticsearch([elastic_host])
 
         aux = SentimentIntensityAnalyzer()
 
-        print(aux.polarity_scores(twtraduction.text)['compound'], '\n')
+        polarity = aux.polarity_scores(twtraduction.text)['compound']
+        print(polarity)
 
-        if aux.polarity_scores(twtraduction.text)['compound'] < 0:
-            opinion = {'op': 'positive'}
-        elif aux.polarity_scores(twtraduction.text)['compound'] > 0:
-            opinion = {'op': 'negative'}
+        if polarity < 0:
+            tweet_export['opinion'] = polarity
+            tweet_export['opinionavg'] = 'negative'
+        elif polarity > 0:
+            tweet_export['opinion'] = polarity
+            tweet_export['opinionavg'] = 'positive'
         else:
-            opinion = {'op': 'neutral'}
+            tweet_export['opinion'] = polarity
+            tweet_export['opinionavg'] = 'neutral'
 
-        # es.index(index=index_name_compound, id=tweet_export['id'], document=opinion)
-        # es.index(index=index_name, id=tweet_export['id'], document=tweet_export)
-        # print('Tweet indexado ✔ \n')
-
-
-class Classifier:
-
-    def nltkSentiment(self, text):
-        aux = SentimentIntensityAnalyzer()
-        print(aux.polarity_scores(text))
+        es.index(index=index_name, id=tweet_export['id'], document=tweet_export)
+        print('Tweet indexado ✔ \n')
 
 
 class MyMaxStream:
@@ -110,6 +101,9 @@ class OffStream:
         es = Elasticsearch([elastic_host])
         print('Conectado a elastic')
         for tweet in public_tweets:
+            # translator = Translator()
+            # twtraduction = translator.translate(tweet.text, dest='en')
+            # print(twtraduction.text)
             tweet_export = {
                 'created_at': tweet.created_at,
                 'id': tweet.id,
@@ -121,23 +115,11 @@ class OffStream:
                 'retweets': tweet.retweet_count,
                 'favourites': tweet.favorite_count
             }
-            sentiment = sentiment_analysis.SentimentAnalysisSpanish()
             print(tweet_export['text'])
-            print(sentiment.sentiment(tweet_export['text']))  # Positive ~ 1 / Negative ~ 0
 
-            es.index(index=index_name_off, id=tweet_export['id'], document=tweet_export)
+            # es.index(index=index_name_off, id=tweet_export['id'], document=tweet_export)
 
         print('Últimos', tweets_index,  'tweets de las cuentas ', screen_name, ' indexados ✔ ')
-
-    def lematz(self, text):
-
-        stemmed = SnowballStemmer('spanish')
-        text = text.lower()
-        text = text.replace('á', 'a').replace('é', 'e').replace('í', 'i').replace('ó', 'o').replace('ú', 'u')
-        text = re.sub(r'[^a-zA-Z0-9]', ' ', text)
-        stemmed_text = [stemmed.stem(i) for i in word_tokenize(text)]
-
-        print(stemmed_text)
 
 
 if __name__ == '__main__':
@@ -160,18 +142,14 @@ if __name__ == '__main__':
     option = input()
     if option == '1':
         myListener = MyStreamListener()
-        print('Recopilando tweets...')
+        print('\nRecopilando tweets... \n')
         stream = MyMaxStream(auth, myListener)
         stream.start()
     elif option == '2':
-        # Esta opcion obtiene los tweets de la cuenta pasada por parametro y los indexa en elastic
         searcher = OffStream()
         searcher.obtain_tweets(user_tweets)
     elif option == '3':
+        print('test')
 
-        text = 'modern warfare 2 es un juego para niños, no me lo comprare'
-        translator = Translator(service_urls=['translate.googleapis.com'])
-        traduccion = translator.translate(text, dest='en')
-        print(traduccion.text)
 
 

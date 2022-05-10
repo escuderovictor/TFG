@@ -11,7 +11,7 @@ callback_uri = 'oob'
 
 filter_words = ['ps5', 'gamepass']
 filter_no_words = ['sorteo']
-filter_languages = ['es', 'en']
+filter_languages = ['es']
 user_tweets = ['powerbazinga', 'joseju']
 
 index_name = 'tweets'
