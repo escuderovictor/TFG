@@ -20,7 +20,6 @@ class MyStreamListener(tweepy.StreamListener):
             return False
 
     def on_data(self, data):
-
         data_aux = json.loads(data)
 
         date = pd.to_datetime(pd.Series(data_aux['created_at']))
@@ -40,8 +39,7 @@ class MyStreamListener(tweepy.StreamListener):
             'polarity_avg': 0
         }
 
-        polarity = Polarity()
-        polarity.obtain_polarity(tweet_export)
+        Polarity().obtain_polarity(tweet_export)
         print(tweet_export)
 
         es = Elasticsearch([elastic_host])
@@ -59,9 +57,7 @@ class OffStream:
                                               tweets_mode='extended')
 
         es = Elasticsearch([elastic_host])
-        print('Connected to Elastic')
         for tweet in public_tweets:
-
             tweet_export = {
                 'created_at': tweet.created_at,
                 'id': tweet.id,
@@ -75,13 +71,13 @@ class OffStream:
                 'polarity': 0,
                 'polarity_avg': 0
             }
-            polarity = Polarity()
-            polarity.obtain_polarity(tweet_export)
+
+            Polarity().obtain_polarity(tweet_export)
             print(tweet_export)
 
             es.index(index=index_name_off, id=tweet_export['id'], document=tweet_export)
 
-        print('Last ', tweets_index, ' tweets of', screen_name, ' accounts indexed ✔ ')
+        print('\nLast ', tweets_index, ' tweets of', screen_name, ' accounts indexed ✔ ')
 
 
 class Polarity:
@@ -124,9 +120,11 @@ if __name__ == '__main__':
     auth = tweepy.OAuthHandler(consumer_key, consumer_secret, callback_uri)
     auth.set_access_token(access_token, access_token_secret)
 
+
     def sigint_handler(signal, frame):
         print('\033[1m' + '⌨ Program stopped manually ⌨ ' + '\033[0m')
         sys.exit(0)
+
 
     signal.signal(signal.SIGINT, sigint_handler)
 
