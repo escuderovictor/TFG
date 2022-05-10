@@ -9,9 +9,6 @@ from nltk.sentiment.vader import SentimentIntensityAnalyzer
 from datetime import datetime
 from googletrans import Translator
 
-pd.set_option('display.max_columns',None)
-pd.set_option('display.max_rows',None)
-
 
 class MyStreamListener(tweepy.StreamListener):
 
@@ -34,16 +31,12 @@ class MyStreamListener(tweepy.StreamListener):
         translator = Translator()
         twtraduction = translator.translate(text, dest='en')
 
-        print(text)
-
-        print(twtraduction.text)
-
-        # date = data_aux['created_at']
-        # date = datetime.strptime(date, '%a %b %d %H %z %Y')
-        # # date = datetime.strftime(date, '%a %b %d')
+        date = pd.to_datetime(pd.Series(data_aux['created_at']))
+        date_format = date.dt.strftime('%d/%m/%Y')
+        print(date_format.values)
 
         tweet_export = {
-            'created_at': data_aux['created_at'],
+            'created_at': date_format.values,
             'id': data_aux['id'],
             # 'text': stemmed_text,
             'text': text,
@@ -54,29 +47,27 @@ class MyStreamListener(tweepy.StreamListener):
             'coordinates': data_aux['coordinates'],
             'retweets': data_aux['retweet_count'],
             'favourites': data_aux['favorite_count'],
-            'opinion': 0,
-            'opnionavg': 0
+            'polarity': 0,
+            'polarity_avg': 0
         }
-
-        # print(tweet_export)
 
         es = Elasticsearch([elastic_host])
 
         aux = SentimentIntensityAnalyzer()
 
         polarity = aux.polarity_scores(twtraduction.text)['compound']
-        print(polarity)
 
         if polarity < 0:
-            tweet_export['opinion'] = polarity
-            tweet_export['opinionavg'] = 'negative'
+            tweet_export['polarity'] = polarity
+            tweet_export['polarity_avg'] = 'negative'
         elif polarity > 0:
-            tweet_export['opinion'] = polarity
-            tweet_export['opinionavg'] = 'positive'
+            tweet_export['polarity'] = polarity
+            tweet_export['polarity_avg'] = 'positive'
         else:
-            tweet_export['opinion'] = polarity
-            tweet_export['opinionavg'] = 'neutral'
+            tweet_export['polarity'] = polarity
+            tweet_export['polarity_avg'] = 'neutral'
 
+        print(tweet_export)
         es.index(index=index_name, id=tweet_export['id'], document=tweet_export)
         print('Tweet indexado ✔ \n')
 
@@ -150,6 +141,3 @@ if __name__ == '__main__':
         searcher.obtain_tweets(user_tweets)
     elif option == '3':
         print('test')
-
-
-
