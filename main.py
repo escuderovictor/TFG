@@ -37,17 +37,19 @@ class MyStreamListener(tweepy.StreamListener):
             'favourites': data_aux['favorite_count'],
             'polarity': 0,
             'polarity_avg': 0,
-            'platform': ''
+            'platform': '',
+            'opinion': ''
         }
 
-        TweetTreatment().obtain_polarity(tweet_export)
-        TweetTreatment().clasify_platform(tweet_export)
+        TweetInfo().obtain_polarity(tweet_export)
+        TweetInfo().clasify_platform(tweet_export)
+        TweetInfo().clasify_opinion(tweet_export)
 
         print(tweet_export)
 
-        # es = Elasticsearch([elastic_host])
-        # es.index(index=index_name, id=tweet_export['id'], document=tweet_export)
-        # print('Indexed Tweet ✔ \n')
+        es = Elasticsearch([elastic_host])
+        es.index(index=index_name, id=tweet_export['id'], document=tweet_export)
+        print('Indexed Tweet ✔ \n')
 
 
 class MyMaxStream:
@@ -82,24 +84,24 @@ class OffStream:
                 'favourites': tweet.favorite_count,
                 'polarity': 0,
                 'polarity_avg': 0,
-                'platform': ''
+                'platform': '',
+                'opinion': ''
             }
 
-            TweetTreatment().obtain_polarity(tweet_export)
+            TweetInfo().obtain_polarity(tweet_export)
+            TweetInfo().clasify_platform(tweet_export)
+            TweetInfo().clasify_opinion(tweet_export)
             print(tweet_export)
 
-            # stemmed = SnowballStemmer('spanish')
-            # stemmed_text = [stemmed.stem(i) for i in word_tokenize(tweet_export['text'])]
-            # print(stemmed_text)
-
-            # es.index(index=index_name_off, id=tweet_export['id'], document=tweet_export)
+            es.index(index=index_name_off, id=tweet_export['id'], document=tweet_export)
 
         print('\nLast ', tweets_off, ' tweets of', screen_name, ' accounts indexed ✔ ')
 
 
-class TweetTreatment:
+class TweetInfo:
 
     def obtain_polarity(self, tweet_export):
+
         text = tweet_export['text']
         text = re.sub(r'https?:\/\/.\S+', "", text)
         text = re.sub(r'#', '', text)
@@ -114,25 +116,17 @@ class TweetTreatment:
 
         if polarity < 0:
             tweet_export['polarity'] = polarity
-            tweet_export['polarity_avg'] = 'negative'
+            tweet_export['polarity_avg'] = 'Negative'
         elif polarity > 0:
             tweet_export['polarity'] = polarity
-            tweet_export['polarity_avg'] = 'positive'
+            tweet_export['polarity_avg'] = 'Positive'
         else:
             tweet_export['polarity'] = polarity
-            tweet_export['polarity_avg'] = 'neutral'
+            tweet_export['polarity_avg'] = 'Neutral'
 
     def clasify_platform(self, tweet_export):
 
-        text = tweet_export['text']
-        text = re.sub(r'https?:\/\/.\S+', "", text)
-        text = re.sub(r'#', '', text)
-        text = re.sub(r'^RT[\s]+', '', text)
-        text = text.lower()
-
-        translator = Translator()
-        tweet_trad = translator.translate(text, dest='en')
-        tweet_trad = word_tokenize(tweet_trad.text)
+        text = TextTreatment().clean_translate(tweet_export['text'])
 
         platforms = {
             'Xbox': ['xbox', 'xbox series', 'xbox series x', 'xbox series s', 'xbox one', 'microsoft'],
@@ -143,11 +137,49 @@ class TweetTreatment:
         }
         platform_aux = ''
         for tag, keywords in platforms.items():
-            for i in tweet_trad:
+            for i in text:
                 if i in keywords:
                     platform_aux = tag
 
         tweet_export['platform'] = platform_aux
+
+    def clasify_opinion(self, tweet_export):
+
+        text = TextTreatment().clean_translate(tweet_export['text'])
+        print(text)
+        stemmed = SnowballStemmer('english')
+        stemmed_text = [stemmed.stem(i) for i in text]
+
+        opinions = {
+            'Price': ['price', 'cost', 'valu', 'valuat', 'premium', 'charg', 'expens', 'cheap'],
+            'Graphics': ['environ', 'appear', 'look', 'aspect', 'appear', 'impres', 'concept'],
+            'Performance': ['perform', 'run', 'work', 'render', 'oper', 'feel'],
+            'Difficulty': ['difficult', 'complic', 'difficulti', 'hard', 'abstrus', 'hardship', 'hurdl'],
+            'Length': ['length', 'durat', 'term', 'extent'],
+
+        }
+        opinion_aux = ''
+        for tag, keywords in opinions.items():
+            for i in text:
+                if i in keywords:
+                    opinion_aux = tag
+
+        tweet_export['opinion'] = opinion_aux
+
+
+class TextTreatment:
+
+    def clean_translate(self, text):
+        text = re.sub(r'https?:\/\/.\S+', "", text)
+        text = re.sub(r'#', '', text)
+        text = re.sub(r'^RT[\s]+', '', text)
+        text = text.lower()
+
+        translator = Translator()
+        tweet_trad = translator.translate(text, dest='en')
+        tweet_trad = word_tokenize(tweet_trad.text)
+
+        return tweet_trad
 
 
 if __name__ == '__main__':
@@ -176,30 +208,11 @@ if __name__ == '__main__':
     elif option == '3':
         print('option test')
 
-        text = 'pepito tiene una ps5'
-        text = word_tokenize(text)
-        platforms = {
-            'Xbox': ['xbox', 'xbox series', 'xbox series x', 'xbox series s', 'xbox one', 'microsoft'],
-            'Play Station': ['ps4', 'ps5', 'play station', 'sony', 'dual sense', 'dualsense', 'dual shock',
-                             'dualshock'],
-            'PC': ['steam', 'epic games', 'origin', 'graphic card'],
-            'Nintendo Switch': ['nintendo', 'switch', 'joycon', 'eShop']
-        }
-        aux = ''
-        for tag, keywords in platforms.items():
-            for i in text:
-                if i in keywords:
-                    aux = tag
+        text = 'expensive cheap'
+        text = TextTreatment().clean_translate(text)
+        print(text)
+        stemmed = SnowballStemmer('english')
 
-        # if aux == 0:
-        #     platform = 'Xbox'
-        # elif aux == 1:
-        #     platform = 'PLay Station'
-        # elif aux == 2:
-        #     platform = 'PC'
-        # elif aux == 3:
-        #     platform = 'Nintendo Switch'
-        # else:
-        #     platform = ''
+        stemmed_text = [stemmed.stem(i) for i in text]
 
-        print(aux)
+        print(stemmed_text)
