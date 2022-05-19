@@ -2,9 +2,9 @@ import signal
 import sys
 import tweepy
 import json
+import pandas as pd
 from keys import *
 from elasticsearch import Elasticsearch
-import pandas as pd
 from nltk.sentiment.vader import SentimentIntensityAnalyzer
 from googletrans import Translator
 
@@ -36,15 +36,27 @@ class MyStreamListener(tweepy.StreamListener):
             'retweets': data_aux['retweet_count'],
             'favourites': data_aux['favorite_count'],
             'polarity': 0,
-            'polarity_avg': 0
+            'polarity_avg': 0,
+            'platform': ''
         }
 
-        Polarity().obtain_polarity(tweet_export)
+        TweetTreatment().obtain_polarity(tweet_export)
+        TweetTreatment().clasify_platform(tweet_export)
+
         print(tweet_export)
 
-        es = Elasticsearch([elastic_host])
-        es.index(index=index_name, id=tweet_export['id'], document=tweet_export)
-        print('Indexed Tweet ✔ \n')
+        # es = Elasticsearch([elastic_host])
+        # es.index(index=index_name, id=tweet_export['id'], document=tweet_export)
+        # print('Indexed Tweet ✔ \n')
+
+
+class MyMaxStream:
+
+    def __init__(self, auth, listener):
+        self.stream = tweepy.Stream(auth=auth, listener=listener)
+
+    def start(self):
+        self.stream.filter(track=filter_words, languages=filter_languages)
 
 
 class OffStream:
@@ -53,7 +65,7 @@ class OffStream:
 
         api = tweepy.API(auth, wait_on_rate_limit=True)
         for i in screen_name:
-            public_tweets = api.user_timeline(screen_name=i, count=tweets_index, include_rts=True,
+            public_tweets = api.user_timeline(screen_name=i, count=tweets_off, include_rts=True,
                                               tweets_mode='extended')
 
         es = Elasticsearch([elastic_host])
@@ -69,18 +81,23 @@ class OffStream:
                 'retweets': tweet.retweet_count,
                 'favourites': tweet.favorite_count,
                 'polarity': 0,
-                'polarity_avg': 0
+                'polarity_avg': 0,
+                'platform': ''
             }
 
-            Polarity().obtain_polarity(tweet_export)
+            TweetTreatment().obtain_polarity(tweet_export)
             print(tweet_export)
 
-            es.index(index=index_name_off, id=tweet_export['id'], document=tweet_export)
+            # stemmed = SnowballStemmer('spanish')
+            # stemmed_text = [stemmed.stem(i) for i in word_tokenize(tweet_export['text'])]
+            # print(stemmed_text)
 
-        print('\nLast ', tweets_index, ' tweets of', screen_name, ' accounts indexed ✔ ')
+            # es.index(index=index_name_off, id=tweet_export['id'], document=tweet_export)
+
+        print('\nLast ', tweets_off, ' tweets of', screen_name, ' accounts indexed ✔ ')
 
 
-class Polarity:
+class TweetTreatment:
 
     def obtain_polarity(self, tweet_export):
         text = tweet_export['text']
@@ -105,14 +122,32 @@ class Polarity:
             tweet_export['polarity'] = polarity
             tweet_export['polarity_avg'] = 'neutral'
 
+    def clasify_platform(self, tweet_export):
 
-class MyMaxStream:
+        text = tweet_export['text']
+        text = re.sub(r'https?:\/\/.\S+', "", text)
+        text = re.sub(r'#', '', text)
+        text = re.sub(r'^RT[\s]+', '', text)
+        text = text.lower()
 
-    def __init__(self, auth, listener):
-        self.stream = tweepy.Stream(auth=auth, listener=listener)
+        translator = Translator()
+        tweet_trad = translator.translate(text, dest='en')
+        tweet_trad = word_tokenize(tweet_trad.text)
 
-    def start(self):
-        self.stream.filter(track=filter_words, languages=filter_languages)
+        platforms = {
+            'Xbox': ['xbox', 'xbox series', 'xbox series x', 'xbox series s', 'xbox one', 'microsoft'],
+            'Play Station': ['ps4', 'ps5', 'play station', 'sony', 'dual sense', 'dualsense', 'dual shock',
+                             'dualshock'],
+            'PC': ['steam', 'epic games', 'origin', 'graphic card', 'cpu'],
+            'Nintendo Switch': ['nintendo', 'switch', 'joycon', 'eShop']
+        }
+        platform_aux = ''
+        for tag, keywords in platforms.items():
+            for i in tweet_trad:
+                if i in keywords:
+                    platform_aux = tag
+
+        tweet_export['platform'] = platform_aux
 
 
 if __name__ == '__main__':
@@ -140,3 +175,31 @@ if __name__ == '__main__':
         searcher.obtain_tweets(user_tweets)
     elif option == '3':
         print('option test')
+
+        text = 'pepito tiene una ps5'
+        text = word_tokenize(text)
+        platforms = {
+            'Xbox': ['xbox', 'xbox series', 'xbox series x', 'xbox series s', 'xbox one', 'microsoft'],
+            'Play Station': ['ps4', 'ps5', 'play station', 'sony', 'dual sense', 'dualsense', 'dual shock',
+                             'dualshock'],
+            'PC': ['steam', 'epic games', 'origin', 'graphic card'],
+            'Nintendo Switch': ['nintendo', 'switch', 'joycon', 'eShop']
+        }
+        aux = ''
+        for tag, keywords in platforms.items():
+            for i in text:
+                if i in keywords:
+                    aux = tag
+
+        # if aux == 0:
+        #     platform = 'Xbox'
+        # elif aux == 1:
+        #     platform = 'PLay Station'
+        # elif aux == 2:
+        #     platform = 'PC'
+        # elif aux == 3:
+        #     platform = 'Nintendo Switch'
+        # else:
+        #     platform = ''
+
+        print(aux)
