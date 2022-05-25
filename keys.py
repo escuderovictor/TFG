@@ -25,7 +25,9 @@ filter_languages = ['es', 'en']
 # OffStream
 tweets_off = 20
 index_name_off = 'tweets_off_stream_elden_ring'
-
+cursor_filter = 'Elden ring'
+cursor_date = '2022-05-25'
+cursor_language = 'en'
 
 
 

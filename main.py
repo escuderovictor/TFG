@@ -1,13 +1,13 @@
 import signal
 import sys
+
 import tweepy
 import json
 import pandas as pd
 from keys import *
 from elasticsearch import Elasticsearch
 from nltk.sentiment.vader import SentimentIntensityAnalyzer
-from googletrans import Translator
-from geopy.geocoders import ArcGIS
+from nltk import SnowballStemmer
 
 
 class MyStreamListener(tweepy.StreamListener):
@@ -26,7 +26,7 @@ class MyStreamListener(tweepy.StreamListener):
 
         if (not data_aux['retweeted']) and ('RT @' not in data_aux['text']):
             date = pd.to_datetime(pd.Series(data_aux['created_at']))
-            date_format = date.dt.strftime('%d/%m/%Y')
+            date_format = date.dt.strftime('%d/%m/%Y %Hh')
             tweet_export = {
                 'created_at': date_format.values,
                 'is_retweeted': data_aux['retweeted'],
@@ -70,11 +70,8 @@ class OffStream:
     def obtain_tweets(self):
 
         api = tweepy.API(auth, wait_on_rate_limit=True)
-        # for i in screen_name:
-        #     public_tweets = api.user_timeline(screen_name=i, count=tweets_off, include_rts=True,
-        #                                       tweets_mode='extended')
 
-        for tweet in tweepy.Cursor(api.search, q='Elden ring', Since='2022-05-25', lang='en').items(3000):
+        for tweet in tweepy.Cursor(api.search, q=cursor_filter, Since=cursor_date, lang=cursor_language).items(3000):
             if (not tweet.retweeted) and ('RT @' not in tweet.text):
                 date = pd.to_datetime(pd.Series(tweet.created_at))
                 date_format = date.dt.strftime('%d/%m/%Y')
@@ -205,20 +202,5 @@ if __name__ == '__main__':
         searcher = OffStream()
         searcher.obtain_tweets()
     elif option == '3':
-
-        s1 = 'abc'
-        s2 = '123'
-        s1.join(s2)  # 1abc2abc3
-
-        nom = ArcGIS()
-        m = nom.geocode('None')
-        p = m.latitude, m.longitude
-
-        delimiter = ','
-        b = '[]'
-        e = ','.join([str(value) for value in p]).join('[]')
-
-        print(e.join(b))
-        print(e)
-
-        print(m.latitude, m.longitude)
+        stemmed = SnowballStemmer('xbox')
+        print(stemmed)
