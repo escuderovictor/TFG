@@ -5,6 +5,7 @@ import tweepy
 import json
 import pandas as pd
 from keys import *
+from config import *
 from elasticsearch import Elasticsearch
 from nltk.sentiment.vader import SentimentIntensityAnalyzer
 from nltk import SnowballStemmer
@@ -71,7 +72,8 @@ class OffStream:
 
         api = tweepy.API(auth, wait_on_rate_limit=True)
 
-        for tweet in tweepy.Cursor(api.search, q=cursor_filter, Since=cursor_date, lang=cursor_language).items(3000):
+        for tweet in tweepy.Cursor(api.search, q=cursor_filter, since=cursor_since_date, until=cursor_until_date,
+                                   lang=cursor_language).items(3000):
             if (not tweet.retweeted) and ('RT @' not in tweet.text):
                 date = pd.to_datetime(pd.Series(tweet.created_at))
                 date_format = date.dt.strftime('%d/%m/%Y')
@@ -171,7 +173,7 @@ class TextTreatment:
 
     def clean_translate(self, text):
         text = re.sub(r'https?:\/\/.\S+', "", text)
-        text = re.sub(r'#', '', text)
+        text = re.sub(r'[^a-zA-Z0-9]', ' ', text)
         text = re.sub(r'^RT[\s]+', '', text)
         text = text.lower()
         text = word_tokenize(text)
