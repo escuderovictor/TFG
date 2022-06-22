@@ -1,11 +1,12 @@
 import signal
 import sys
+from keys import *
+from config import *
 
 import tweepy
 import json
 import pandas as pd
-from keys import *
-from config import *
+import re
 from elasticsearch import Elasticsearch
 from nltk.sentiment.vader import SentimentIntensityAnalyzer
 from nltk import SnowballStemmer
@@ -14,7 +15,7 @@ from nltk import SnowballStemmer
 class MyStreamListener(tweepy.StreamListener):
 
     def on_status(self, status):
-        return True
+        print(status.text)
 
     def on_error(self, status_code):
         if status_code == 420:
@@ -23,38 +24,32 @@ class MyStreamListener(tweepy.StreamListener):
 
     def on_data(self, data):
 
-        data_aux = json.loads(data)
+        tweet = json.loads(data)
 
-        if (not data_aux['retweeted']) and ('RT @' not in data_aux['text']):
-            date = pd.to_datetime(pd.Series(data_aux['created_at']))
+        if (not tweet['retweeted']) and ('RT @' not in tweet['text']):
+            date = pd.to_datetime(pd.Series(tweet['created_at']))
             date_format = date.dt.strftime('%d/%m/%Y %Hh')
             tweet_export = {
                 'created_at': date_format.values,
-                'is_retweeted': data_aux['retweeted'],
-                'id': data_aux['id'],
-                'text': data_aux['text'],
-                'user': data_aux['user']['screen_name'],
-                'user_followers': data_aux['user']['followers_count'],
-                'user_follows': data_aux['user']['friends_count'],
-                'user_location': data_aux['user']['location'],
-                'user_location_coordinates': 0,
-                'retweets': data_aux['retweet_count'],
-                'favourites': data_aux['favorite_count'],
+                'id': tweet['id'],
+                'text': tweet['text'],
+                'user': tweet['user']['screen_name'],
+                'user_followers': tweet['user']['followers_count'],
+                'user_follows': tweet['user']['friends_count'],
+                'retweets': tweet['retweet_count'],
+                'favourites': tweet['favorite_count'],
                 'polarity': 0,
                 'polarity_avg': 0,
                 'platform': '',
-                'opinion': ''
+                'topic': ''
             }
 
             TweetInfo().obtain_polarity(tweet_export)
-            TweetInfo().clasify_platform(tweet_export)
-            TweetInfo().clasify_opinion(tweet_export)
-
-            print(tweet_export)
+            TweetInfo().classify_platform(tweet_export)
+            TweetInfo().classify_topic(tweet_export)
 
             es = Elasticsearch([elastic_host])
             es.index(index=index_name, id=tweet_export['id'], document=tweet_export)
-            print('Indexed Tweet ✔ \n')
 
 
 class MyMaxStream:
@@ -70,13 +65,12 @@ class OffStream:
 
     def obtain_tweets(self):
 
-        api = tweepy.API(auth, wait_on_rate_limit=True)
-
         for tweet in tweepy.Cursor(api.search, q=cursor_filter, since=cursor_since_date, until=cursor_until_date,
                                    lang=cursor_language).items(3000):
+
             if (not tweet.retweeted) and ('RT @' not in tweet.text):
                 date = pd.to_datetime(pd.Series(tweet.created_at))
-                date_format = date.dt.strftime('%d/%m/%Y')
+                date_format = date.dt.strftime('%d/%m/%Y %Hh')
                 tweet_export = {
                     'created_at': date_format.values,
                     'id': tweet.id,
@@ -84,19 +78,19 @@ class OffStream:
                     'user': tweet.user.screen_name,
                     'user_followers': tweet.user.followers_count,
                     'user_follows': tweet.user.friends_count,
-                    'user_location': tweet.user.location,
                     'retweets': tweet.retweet_count,
                     'favourites': tweet.favorite_count,
                     'polarity': 0,
                     'polarity_avg': 0,
                     'platform': '',
-                    'opinion': ''
+                    'topic': ''
                 }
-                es = Elasticsearch([elastic_host])
+
                 TweetInfo().obtain_polarity(tweet_export)
-                TweetInfo().clasify_platform(tweet_export)
-                TweetInfo().clasify_opinion(tweet_export)
-                print(tweet_export)
+                TweetInfo().classify_platform(tweet_export)
+                TweetInfo().classify_topic(tweet_export)
+
+                es = Elasticsearch([elastic_host])
                 es.index(index=index_name_off, id=tweet_export['id'], document=tweet_export)
 
 
@@ -106,8 +100,7 @@ class TweetInfo:
 
         text = tweet_export['text']
         text = re.sub(r'https?:\/\/.\S+', "", text)
-        text = re.sub(r'#', '', text)
-        text = re.sub(r'^RT[\s]+', '', text)
+        text = re.sub(r'[^a-zA-Z0-9]', ' ', text)
 
         aux = SentimentIntensityAnalyzer()
 
@@ -123,17 +116,10 @@ class TweetInfo:
             tweet_export['polarity'] = polarity
             tweet_export['polarity_avg'] = 'Neutral'
 
-    def clasify_platform(self, tweet_export):
+    def classify_platform(self, tweet_export):
 
-        text = TextTreatment().clean_translate(tweet_export['text'])
+        text = TextTreatment().clean_text(tweet_export['text'])
 
-        platforms = {
-            'Xbox': ['xbox', 'xbox series', 'xbox series x', 'xbox series s', 'xbox one', 'microsoft'],
-            'Play Station': ['ps4', 'ps5', 'play station', 'sony', 'dual sense', 'dualsense', 'dual shock',
-                             'dualshock'],
-            'PC': ['steam', 'epic games', 'origin', 'graphic card', 'cpu'],
-            'Nintendo Switch': ['nintendo', 'switch', 'joycon', 'eShop']
-        }
         platform_aux = ''
         for tag, keywords in platforms.items():
             for i in text:
@@ -142,39 +128,29 @@ class TweetInfo:
 
         tweet_export['platform'] = platform_aux
 
-    def clasify_opinion(self, tweet_export):
+    def classify_topic(self, tweet_export):
 
-        text = TextTreatment().clean_translate(tweet_export['text'])
+        text = TextTreatment().clean_text(tweet_export['text'])
         stemmed = SnowballStemmer('english')
         stemmed_text = [stemmed.stem(i) for i in text]
 
-        opinions = {
-            'Precio': ['price', 'cost', 'valu', 'valuat', 'premium', 'charg', 'expens', 'cheap', 'cost', 'high-pric',
-                       'excess', 'exorbit'],
-            'Gráficos': ['environ', 'appear', 'look', 'aspect', 'appear', 'impres', 'concept', 'art', 'beauti',
-                         'pleasant'],
-            'Rendimiento': ['perform', 'run', 'work', 'render', 'oper', 'feel', 'effici', 'execut', 'display'],
-            'Difcultad': ['difficult', 'complic', 'difficulti', 'hard', 'abstrus', 'hardship', 'hurdl', 'impenetr',
-                          'unfathom', 'exhaust', 'arduous', 'exasper', 'frustrat', 'simpl', 'painless', 'easy-peasi',
-                          'friend', 'casua', 'light'],
-            'Duración': ['length', 'durat', 'term', 'extent', 'short', 'concis']
-
-        }
-        opinion_aux = ''
-        for tag, keywords in opinions.items():
+        topic_aux = ''
+        for tag, keywords in topics.items():
             for i in stemmed_text:
                 if i in keywords:
-                    opinion_aux = tag
+                    topic_aux = tag
 
-        tweet_export['opinion'] = opinion_aux
+        tweet_export['text'] = stemmed_text
+        tweet_export['topic'] = topic_aux
 
 
 class TextTreatment:
 
-    def clean_translate(self, text):
-        text = re.sub(r'https?:\/\/.\S+', "", text)
+    def clean_text(self, text):
+
+        text = re.sub(r'https?:\/\/.\S+', '', text)
         text = re.sub(r'[^a-zA-Z0-9]', ' ', text)
-        text = re.sub(r'^RT[\s]+', '', text)
+
         text = text.lower()
         text = word_tokenize(text)
         return text
@@ -182,9 +158,10 @@ class TextTreatment:
 
 if __name__ == '__main__':
 
-    auth = tweepy.OAuthHandler(consumer_key, consumer_secret, callback_uri)
+    auth = tweepy.OAuthHandler(consumer_key, consumer_secret, callback_url)
     auth.set_access_token(access_token, access_token_secret)
 
+    api = tweepy.API(auth, wait_on_rate_limit=True)
 
     def sigint_handler(signal, frame):
         print('\033[1m' + '⌨ Program stopped manually ⌨ ' + '\033[0m')
@@ -193,16 +170,15 @@ if __name__ == '__main__':
 
     signal.signal(signal.SIGINT, sigint_handler)
 
-    print('Option 1: Stream   Option 2: Obtain off stream Tweets   Option 3: Test')
+    print('Option 1: Stream   Option 2: Obtain off stream Tweets')
     option = input()
     if option == '1':
+
         myListener = MyStreamListener()
-        print('\nCollecting tweets... \n')
         stream = MyMaxStream(auth, myListener)
         stream.start()
+
     elif option == '2':
+
         searcher = OffStream()
         searcher.obtain_tweets()
-    elif option == '3':
-        stemmed = SnowballStemmer('xbox')
-        print(stemmed)
